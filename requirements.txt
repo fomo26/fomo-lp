@@ -1,0 +1,10 @@
+# Core dependencies for lp_fomo.py
+numpy
+scikit-learn
+pyyaml
+
+# Install these separately from their own repos:
+#   fomo_challenge_metrics:
+#       pip install git+https://github.com/fomo26/fomo-metrics.git
+#   asparagus (required — provides LinearProbeModule, lightning, torch):
+#       pip install -e /path/to/asparagus

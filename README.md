@@ -1,0 +1,127 @@
+# FOMO26 Evaluation Pipeline
+
+Linear probing and fairness evaluation for the [FOMO26 Challenge](https://fomo26.github.io).
+
+Given precomputed embeddings from a model, this pipeline trains a linear classifier on the class labels and reports classification performance and fairness metrics across the configured grouping variables.
+
+## How it works
+
+1. A model (container) produces a 1-D embedding per each scan and saves it to disk as `<ptid>.npz` (one file per subject)
+2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, implement a linear probing, and writes a fairness report
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+
+# Fairness metrics package
+pip install git+https://github.com/fomo26/fomo-metrics.git
+```
+
+## Usage
+
+Two steps: extract embeddings, then train the linear probe and write the fairness report. Please use the following commands:
+
+```bash
+# 1. Extract embeddings from scans (one <ptid>.npz per subject)
+python pipeline/embed_all.py \
+    --csv     /path/to/subjects.csv \
+    --ckpt    /path/to/backbone.ckpt \
+    --out-dir /path/to/embeddings
+
+# 2. Train LP + write fairness report
+python pipeline/lp_fomo.py \
+    --embeddings-dir /path/to/embeddings \
+    --csv            /path/to/subjects.csv \
+    --output-dir     results/my_model
+```
+
+### Outputs
+
+| File | Contents |
+|---|---|
+| `predictions.json` | Per-sample label, prediction, and softmax scores |
+| `eval_report.json` | Overall metrics + per-variable fairness report |
+
+### Example `eval_report.json`
+
+```json
+{
+  "feature_dim": 512,
+  "n_train": 240, "n_val": 60, "n_test": 300,
+  "best_lr": 0.001, "best_val_auroc": 0.91,
+  "overall": { "ovr_f1": 0.72, "ovr_auroc": 0.89 },
+  "per_variable": {
+    "variable_1": { "groups": {"group_a": 146, "group_b": 154}, "disparities": {"ovr_f1": 0.04} },
+    "variable_2": { "groups": {"bin_0": 17, "bin_1": 91, "bin_2": 133, "bin_3": 59}, "disparities": {"ovr_f1": 0.07} }
+  },
+  "fairness_score": {
+    "ovr_f1": { "score": 0.94, "variables_used": ["variable_1", "variable_2"] }
+  }
+}
+```
+
+## Dataset split
+
+Subjects are split into train/val/test with a stratified, reproducible split
+(per-class, with a configurable number of subjects per split):
+
+| Split | Per class |
+|---|---|
+| Train | 40 % |
+| Val | 10 % |
+| Test | 50 % |
+
+Fairness evaluation runs on the **test set only**.  
+Split is reproducible with `seed=42`.
+
+## Fairness metrics
+
+Computed by [`fomo-metrics`](https://github.com/fomo26/fomo-metrics).
+
+**Fairness variables:** one or more grouping variables read from the CSV, each
+either categorical (grouped as-is) or continuous (bucketed into bins). Configure
+them in `pipeline/config.py`.
+
+**Maximum disparity** per variable *v* and metric *M*:
+
+```
+D_v(M) = max_g M_g  -  min_g M_g
+```
+
+**Fairness score** (higher = more equitable, 1.0 = perfect):
+
+```
+FairnessScore(M) = (1 / |V'|) * Σ_{v in V'} (1 - D_v(M))
+```
+
+## Embeddings format
+
+The embedding model produces one file per subject:
+
+```
+embeddings/
+    <ptid_1>.npz
+    <ptid_2>.npz
+    ...
+```
+
+Each `<ptid>.npz` contains a single 1-D `float32` array (embedding). The key
+name inside the npz is irrelevant — the loader takes the only member. All
+subjects must share the same feature dimension `D`.
+
+The file contains **no labels or metadata**. Labels and fairness variables are
+pulled back from the subjects CSV by `ptid` filename.
+
+## Repository structure
+
+```
+model_weights/                      folder to place your model checkpoint
+pipeline/
+    embed_all.py                    extract embeddings from scans
+    embedding_dataset.py            loads <ptid>.npz embeddings from a directory
+    lp_fomo.py                      LP + fairness evaluation
+    identity_model.py               passthrough encoder used by the LP module
+    config.py                       fairness-variable configuration
+requirements.txt
+```
