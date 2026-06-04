@@ -6,8 +6,8 @@ Given precomputed embeddings from a model, this pipeline trains a linear classif
 
 ## How it works
 
-1. A model (container) produces a 1-D embedding per each scan and saves it to disk as `<ptid>.npz` (one file per subject)
-2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, implement a linear probing, and writes a fairness report
+1. A model (container) produces a 1-D embedding per scan and saves it to disk as `<ptid>.npz` (one file per subject). We provide an example encoder (AMAES `resenc_unet_b` checkpoint from HF) so you can sanity-check the pipeline end-to-end.
+2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, runs a linear probe, and writes a fairness report.
 
 ## Installation
 
