@@ -6,8 +6,8 @@ Given precomputed embeddings from a model, this pipeline trains a linear classif
 
 ## How it works
 
-1. A model (container) produces a 1-D embedding per each scan and saves it to disk as `<ptid>.npy` (one file per subject)
-2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, implement a linear probing, and writes a fairness report
+1. A model (container) produces a 1-D embedding per scan and saves it to disk as `<ptid>.npy` (one file per subject). We provide an example encoder (AMAES `resenc_unet_b` checkpoint from HF) so you can sanity-check the pipeline end-to-end.
+2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, runs a linear probe, and writes a fairness report.
 
 ## Installation
 
@@ -20,16 +20,23 @@ pip install git+https://github.com/fomo26/fomo-metrics.git
 
 ## Usage
 
-Two steps: extract embeddings, then train the linear probe and write the fairness report. Please use the following commands:
+Extract embeddings, then train the linear probe and write the fairness report. Please use the following commands:
 
 ```bash
-# 1. Extract embeddings from scans (one <ptid>.npy per subject)
+# 1. (Optional) Generate dummy embeddings to test the pipeline without a model
+#    (one <ptid>.npy per subject, with a learnable class signal)
+python pipeline/make_dummy_embeddings.py \
+    --csv  /path/to/subjects.csv \
+    --out  /path/to/embeddings \
+    --dims 512
+
+# 2. Extract embeddings from scans (one <ptid>.npy per subject)
 python pipeline/embed_all.py \
     --csv     /path/to/subjects.csv \
     --ckpt    /path/to/backbone.ckpt \
     --out-dir /path/to/embeddings
 
-# 2. Train LP + write fairness report
+# 3. Train LP + write fairness report
 python pipeline/lp_fomo.py \
     --embeddings-dir /path/to/embeddings \
     --csv            /path/to/subjects.csv \
@@ -118,6 +125,7 @@ pulled back from the subjects CSV by `ptid` filename.
 model_weights/                      folder to place your model checkpoint
 pipeline/
     embed_all.py                    extract embeddings from scans
+    make_dummy_embeddings.py        generate dummy embeddings for testing
     embedding_dataset.py            loads <ptid>.npy embeddings from a directory
     lp_fomo.py                      LP + fairness evaluation
     identity_model.py               passthrough encoder used by the LP module
