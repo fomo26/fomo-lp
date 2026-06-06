@@ -6,7 +6,7 @@ Given precomputed embeddings from a model, this pipeline trains a linear classif
 
 ## How it works
 
-1. A model (container) produces a 1-D embedding per each scan and saves it to disk as `<ptid>.npz` (one file per subject)
+1. A model (container) produces a 1-D embedding per each scan and saves it to disk as `<ptid>.npy` (one file per subject)
 2. Main script `lp_fomo.py` loads the embeddings, joins them to labels from the subjects CSV by ptid (patient's id), splits subjects into train/val/test sets, implement a linear probing, and writes a fairness report
 
 ## Installation
@@ -23,7 +23,7 @@ pip install git+https://github.com/fomo26/fomo-metrics.git
 Two steps: extract embeddings, then train the linear probe and write the fairness report. Please use the following commands:
 
 ```bash
-# 1. Extract embeddings from scans (one <ptid>.npz per subject)
+# 1. Extract embeddings from scans (one <ptid>.npy per subject)
 python pipeline/embed_all.py \
     --csv     /path/to/subjects.csv \
     --ckpt    /path/to/backbone.ckpt \
@@ -101,13 +101,12 @@ The embedding model produces one file per subject:
 
 ```
 embeddings/
-    <ptid_1>.npz
-    <ptid_2>.npz
+    <ptid_1>.npy
+    <ptid_2>.npy
     ...
 ```
 
-Each `<ptid>.npz` contains a single 1-D `float32` array (embedding). The key
-name inside the npz is irrelevant — the loader takes the only member. All
+Each `<ptid>.npy` contains a single 1-D `float32` array (embedding). All
 subjects must share the same feature dimension `D`.
 
 The file contains **no labels or metadata**. Labels and fairness variables are
@@ -119,7 +118,7 @@ pulled back from the subjects CSV by `ptid` filename.
 model_weights/                      folder to place your model checkpoint
 pipeline/
     embed_all.py                    extract embeddings from scans
-    embedding_dataset.py            loads <ptid>.npz embeddings from a directory
+    embedding_dataset.py            loads <ptid>.npy embeddings from a directory
     lp_fomo.py                      LP + fairness evaluation
     identity_model.py               passthrough encoder used by the LP module
     config.py                       fairness-variable configuration

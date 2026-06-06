@@ -1,6 +1,6 @@
 """Standalone linear probe + fairness evaluation on precomputed embeddings.
 
-Reads per-subject `<ptid>.npz` embeddings from a directory, joins them to
+Reads per-subject `<ptid>.npy` embeddings from a directory, joins them to
 labels from the subjects CSV, performs a reproducible stratified
 train/val/test split on the subjects, trains a linear probe using the
 asparagus LinearProbeModule (DINOv2-style multi-head SGD + CosineAnnealingLR),
@@ -201,11 +201,11 @@ def run_lp_fomo(
 
     label_lookup = {p: CLASS_TO_IDX[c] for p, c in zip(ptids, cohorts) if c in CLASS_TO_IDX}
 
-    # --- Load embeddings from <ptid>.npz files, in CSV order ---
+    # --- Load embeddings from <ptid>.npy files, in CSV order ---
     emb_by_ptid: dict[str, np.ndarray] = {}
     missing_emb: set[str] = set()
     for ptid in ptids:
-        path = embeddings_dir / f"{ptid}.npz"
+        path = embeddings_dir / f"{ptid}.npy"
         if not path.is_file():
             missing_emb.add(ptid)
             continue
@@ -357,7 +357,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--embeddings-dir", required=True, type=Path,
-                        help="directory containing one <ptid>.npz per subject (1-D float32 each)")
+                        help="directory containing one <ptid>.npy per subject (1-D float32 each)")
     parser.add_argument("--csv", required=True, type=Path,
                         help="selected_subjects CSV (ptid, selected_cohort)")
     parser.add_argument("--output-dir", required=True, type=Path,
