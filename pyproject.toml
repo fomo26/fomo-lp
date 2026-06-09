@@ -1,0 +1,25 @@
+[project]
+name = "fomo-lp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asparagus",
+    "fomo-challenge-metrics",
+    "numpy>=2.4.6",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.0",
+]
+
+# [tool.uv.sources]
+# fomo-challenge-metrics = { git = "https://github.com/fomo26/fomo-metrics.git" }
+# asparagus = { git = "https://github.com/Sllambias/asparagus.git" }
+
+[tool.pip.sources]
+fomo-challenge-metrics = { path = "./packages/fomo-metrics", editable = true }
+asparagus = { path = "./packages/asparagus", editable = true }
+
+[tool.ruff]
+line-length = 127
+

@@ -1,6 +1,6 @@
 """Standalone linear probe + fairness evaluation on precomputed embeddings.
 
-Reads per-subject `<ptid>.npz` embeddings from a directory, joins them to
+Reads per-subject `<ptid>.npy` embeddings from a directory, joins them to
 labels from the subjects CSV, performs a reproducible stratified
 train/val/test split on the subjects, trains a linear probe using the
 asparagus LinearProbeModule (DINOv2-style multi-head SGD + CosineAnnealingLR),
@@ -23,6 +23,7 @@ Requires:
     asparagus   pip install -e /path/to/asparagus
     fomo-metrics  pip install git+https://github.com/fomo26/fomo-metrics.git
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,6 +31,7 @@ import csv
 import json
 import logging
 import random
+import sys
 from collections import defaultdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -40,17 +42,19 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import sys
 _here = Path(__file__).resolve().parent
 sys.path.insert(0, str(_here))
 sys.path.insert(0, str(_here.parent))
 
-from config import FEATURE1_BINS, FEATURE1_CSV_COL, FEATURE2_CSV_COL
-from embedding_dataset import EmbeddingDataset, load_embedding              # noqa: E402
-from identity_model import IdentityEncoder                                  # noqa: E402
-from lp_private.fairness_report import bin_continuous_feature, normalize_categorical_feature, build_fairness_report  # noqa: E402
 from asparagus.modules.lightning_modules.linear_probe_module import LinearProbeModule
-
+from config import FEATURE1_BINS, FEATURE1_CSV_COL, FEATURE2_CSV_COL
+from embedding_dataset import EmbeddingDataset, load_embedding  # noqa: E402
+from identity_model import IdentityEncoder  # noqa: E402
+from lp_private.fairness_report import (
+    bin_continuous_feature,
+    build_fairness_report,
+    normalize_categorical_feature,
+)
 
 log = logging.getLogger(__name__)
 
@@ -63,14 +67,10 @@ DEFAULT_BATCH_SIZE = 64
 # (LinearProbeModule.training_step references it for metric logging)
 # ---------------------------------------------------------------------------
 
+
 class _EmbeddingDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        train_ds: EmbeddingDataset,
-        val_ds: EmbeddingDataset,
-        test_ds: EmbeddingDataset,
-        batch_size: int,
-        seed: int,
+        self, train_ds: EmbeddingDataset, val_ds: EmbeddingDataset, test_ds: EmbeddingDataset, batch_size: int, seed: int
     ) -> None:
         super().__init__()
         self.batch_size = batch_size
@@ -82,12 +82,16 @@ class _EmbeddingDataModule(pl.LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         g = torch.Generator()
         g.manual_seed(self._seed)
-        return DataLoader(self._train_ds, batch_size=self.batch_size, shuffle=True,
-                          num_workers=4, generator=g)
+        return DataLoader(
+            self._train_ds,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=4,
+            generator=g,
+        )
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self._val_ds, batch_size=self.batch_size, shuffle=False,
-                          num_workers=4)
+        return DataLoader(self._val_ds, batch_size=self.batch_size, shuffle=False, num_workers=4)
 
     def test_dataloader(self) -> DataLoader:
         return DataLoader(self._test_ds, batch_size=1, shuffle=False, num_workers=0)
@@ -96,6 +100,7 @@ class _EmbeddingDataModule(pl.LightningDataModule):
 # ---------------------------------------------------------------------------
 # LinearProbeModule subclass: adds softmax scores to the test output JSON
 # ---------------------------------------------------------------------------
+
 
 class LinearProbeModuleWithScores(LinearProbeModule):
     """Stock asparagus LP module + per-sample softmax scores in test JSON."""
@@ -123,13 +128,8 @@ class LinearProbeModuleWithScores(LinearProbeModule):
         self.labels.append(label.squeeze(0))
 
 
-
 def _stratified_split(
-    items: list[dict],
-    n_train: int,
-    n_val: int,
-    n_test: int,
-    seed: int = 42,
+    items: list[dict], n_train: int, n_val: int, n_test: int, seed: int = 42
 ) -> tuple[list[dict], list[dict], list[dict]]:
     rng = random.Random(seed)
     total = n_train + n_val + n_test
@@ -172,6 +172,7 @@ def _stratified_split(
 # Core routine
 # ---------------------------------------------------------------------------
 
+
 def run_lp_fomo(
     embeddings_dir: Path,
     csv_path: Path,
@@ -201,11 +202,11 @@ def run_lp_fomo(
 
     label_lookup = {p: CLASS_TO_IDX[c] for p, c in zip(ptids, cohorts) if c in CLASS_TO_IDX}
 
-    # --- Load embeddings from <ptid>.npz files, in CSV order ---
+    # --- Load embeddings from <ptid>.npy files, in CSV order ---
     emb_by_ptid: dict[str, np.ndarray] = {}
     missing_emb: set[str] = set()
     for ptid in ptids:
-        path = embeddings_dir / f"{ptid}.npz"
+        path = embeddings_dir / f"{ptid}.npy"
         if not path.is_file():
             missing_emb.add(ptid)
             continue
@@ -219,8 +220,13 @@ def run_lp_fomo(
         raise ValueError(f"embeddings have inconsistent dimensions: {sorted(feature_dims)}")
     feature_dim = feature_dims.pop()
 
-    log.info("embeddings: %s  n=%d  dim=%d  missing=%d",
-             embeddings_dir, len(emb_by_ptid), feature_dim, len(missing_emb))
+    log.info(
+        "embeddings: %s  n=%d  dim=%d  missing=%d",
+        embeddings_dir,
+        len(emb_by_ptid),
+        feature_dim,
+        len(missing_emb),
+    )
 
     # --- Stratified split per cohort ---
     by_cohort: dict[str, list[dict]] = defaultdict(list)
@@ -250,14 +256,20 @@ def run_lp_fomo(
     if missing_test:
         log.warning(
             "%d test ptid(s) missing embeddings — worst-case scores will be assigned: %s%s",
-            len(missing_test), sorted(missing_test)[:10],
+            len(missing_test),
+            sorted(missing_test)[:10],
             " ..." if len(missing_test) > 10 else "",
         )
     available_test_ptids = [p for p in test_ptids if p not in missing_emb]
 
-    log.info("split: train=%d  val=%d  test=%d (available=%d  missing=%d)",
-             len(train_ptids), len(val_ptids), len(test_ptids),
-             len(available_test_ptids), len(missing_test))
+    log.info(
+        "split: train=%d  val=%d  test=%d (available=%d  missing=%d)",
+        len(train_ptids),
+        len(val_ptids),
+        len(test_ptids),
+        len(available_test_ptids),
+        len(missing_test),
+    )
 
     train_ds = EmbeddingDataset(train_ptids, emb_by_ptid, label_lookup)
     val_ds = EmbeddingDataset(val_ptids, emb_by_ptid, label_lookup)
@@ -316,7 +328,7 @@ def run_lp_fomo(
     y_scores = [raw_preds.get(p, {}).get("scores") for p in test_ptids]
 
     groups_by_variable = {
-        "feature2":     [normalize_categorical_feature(feature2_lookup[p]) for p in test_ptids],
+        "feature2": [normalize_categorical_feature(feature2_lookup[p]) for p in test_ptids],
         "feature1_bin": [bin_continuous_feature(feature1_lookup[p], FEATURE1_BINS) for p in test_ptids],
     }
     fairness = build_fairness_report(y_test, y_scores, groups_by_variable)
@@ -352,16 +364,28 @@ def run_lp_fomo(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--embeddings-dir", required=True, type=Path,
-                        help="directory containing one <ptid>.npz per subject (1-D float32 each)")
-    parser.add_argument("--csv", required=True, type=Path,
-                        help="selected_subjects CSV (ptid, selected_cohort)")
-    parser.add_argument("--output-dir", required=True, type=Path,
-                        help="directory for predictions.json and eval_report.json")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        "--embeddings-dir",
+        required=True,
+        type=Path,
+        help="directory containing one <ptid>.npy per subject (1-D float32 each)",
+    )
+    parser.add_argument(
+        "--csv",
+        required=True,
+        type=Path,
+        help="selected_subjects CSV (ptid, selected_cohort)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="directory for predictions.json and eval_report.json",
+    )
     parser.add_argument("--n-train", type=int, default=80)
     parser.add_argument("--n-val", type=int, default=20)
     parser.add_argument("--n-test", type=int, default=100)
