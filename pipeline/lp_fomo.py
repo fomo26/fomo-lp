@@ -367,25 +367,14 @@ def run_lp_fomo(
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument(
-        "--embeddings-dir",
-        required=True,
-        type=Path,
-        help="directory containing one <ptid>.npy per subject (1-D float32 each)",
-    )
-    parser.add_argument(
-        "--csv",
-        required=True,
-        type=Path,
-        help="selected_subjects CSV (ptid, selected_cohort)",
-    )
-    parser.add_argument(
-        "--output-dir",
-        required=True,
-        type=Path,
-        help="directory for predictions.json and eval_report.json",
-    )
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--embeddings-dir", required=True, type=Path,
+                        help="directory containing one <ptid>.npy per subject (1-D float32 each)")
+    parser.add_argument("--csv", required=True, type=Path,
+                        help="selected_subjects CSV (ptid, selected_cohort)")
+    parser.add_argument("--output-dir", required=True, type=Path,
+                        help="directory for predictions.json and eval_report.json")
     parser.add_argument("--n-train", type=int, default=80)
     parser.add_argument("--n-val", type=int, default=20)
     parser.add_argument("--n-test", type=int, default=100)

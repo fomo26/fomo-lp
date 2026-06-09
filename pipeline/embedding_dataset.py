@@ -6,7 +6,8 @@ ClsRegDataset:
 
     {"image": Tensor(feature_dim,), "CLSREG_label": Tensor(1,), "file_path": str}
 
-Each `<ptid>.npy` must contain a single 1-D float32 array.
+Each `<ptid>.npz` must contain exactly one 1-D float32 array. The key name
+inside the npz is irrelevant — the loader takes the only member.
 
 No image transforms are applied — embeddings are already final features.
 LinearProbeModule.on_before_batch_transfer will squeeze CLSREG_label to (B,).
@@ -22,8 +23,17 @@ from torch.utils.data import Dataset
 
 
 def load_embedding(path: Path) -> np.ndarray:
-    """Load a 1-D float32 embedding from a `.npy` file."""
-    arr = np.asarray(np.load(str(path)), dtype=np.float32).ravel()
+    """Load a 1-D float32 embedding from an `.npz` containing a single array.
+
+    Forgiving on the inner key name: any single-array npz works.
+    """
+    with np.load(str(path)) as data:
+        keys = data.files
+        if len(keys) != 1:
+            raise ValueError(
+                f"{path}: expected exactly one array, got {len(keys)} ({keys})"
+            )
+        arr = np.asarray(data[keys[0]], dtype=np.float32).ravel()
     if arr.size == 0:
         raise ValueError(f"{path}: empty embedding")
     return arr
