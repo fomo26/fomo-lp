@@ -48,7 +48,7 @@ sys.path.insert(0, str(_here.parent))
 from config import FEATURE1_BINS, FEATURE1_CSV_COL, FEATURE2_CSV_COL
 from embedding_dataset import EmbeddingDataset, load_embedding              # noqa: E402
 from identity_model import IdentityEncoder                                  # noqa: E402
-from lp_private.fairness_report import bin_continuous_feature, normalize_categorical_feature, build_fairness_report  # noqa: E402
+from fairness_report import bin_continuous_feature, normalize_categorical_feature, build_fairness_report  # noqa: E402
 from asparagus.modules.lightning_modules.linear_probe_module import LinearProbeModule
 
 
@@ -137,7 +137,7 @@ def _stratified_split(
     strata: dict = defaultdict(list)
     for r in items:
         try:
-            stratum = min(int(float(r.get("feature1", "")) // 10) * 10, 90)
+            stratum = int(float(r.get("feature1", "")) // 10) * 10
         except (TypeError, ValueError):
             stratum = -1
         strata[stratum].append(r)

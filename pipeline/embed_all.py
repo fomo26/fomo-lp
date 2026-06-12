@@ -1,10 +1,14 @@
-"""Batch-extract embeddings for all subjects in selected_subjects.csv.
+"""Batch-extract embeddings for all subjects in a subjects CSV.
 
 Loads `resenc_unet_b_clsreg` once, then iterates over every row of the CSV,
 runs preprocess + encode + global-avg-pool + flatten, and writes one
 `<ptid>.npz` per subject into the specified output directory.
 
 Each `<ptid>.npz` contains a single 1-D float32 array (the embedding).
+
+The CSV must have at minimum two columns:
+    ptid        unique subject identifier
+    nifti_path  absolute path to the subject's NIfTI scan
 
 Failing scans (missing file, not correct NIfTI) are skipped with a warning.
 """
@@ -141,7 +145,7 @@ def embed_all(
     t0 = time.time()
     for i, row in enumerate(rows, 1):
         ptid = row.get("ptid", "")
-        scan = row.get("copied_nifti_path") or row.get("nifti_path") or ""
+        scan = row.get("nifti_path") or ""
         scan_path = Path(scan)
 
         try:
@@ -185,7 +189,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--csv", required=True, type=Path,
-                        help="selected_subjects CSV (must include ptid and copied_nifti_path)")
+                        help="subjects CSV (must include columns: ptid, nifti_path)")
     parser.add_argument("--ckpt", required=True, type=Path,
                         help="lightning checkpoint with resenc_unet_b weights")
     parser.add_argument("--out-dir", required=True, type=Path,

@@ -18,11 +18,54 @@ pip install -r requirements.txt
 pip install git+https://github.com/fomo26/fomo-metrics.git
 ```
 
+## Configuring fairness variables
+
+Before running the pipeline you must tell it which columns in your CSV hold
+the demographic (fairness) variables.  Open `pipeline/config.py` and fill in
+the three values:
+
+```python
+# First demographic variable column in your subjects CSV.
+FEATURE1_CSV_COL = "your_variable_1"
+
+# Second demographic variable column in your subjects CSV.
+FEATURE2_CSV_COL = "your_variable_2"
+
+# Bin upper bounds (inclusive) and integer group labels for FEATURE1.
+# Set these to match the range of your variable.
+# Example: FEATURE1_BINS = ((25, 0), (50, 1), (75, 2), (1000, 3))
+FEATURE1_BINS = ((..., 0), (..., 1), (..., 2))
+```
+
+`FEATURE1_BINS` is a sequence of `(upper_bound, label)` pairs in ascending
+order.  A subject whose value is ≤ the first upper bound gets label 0, ≤ the
+second gets label 1, and so on.  Make the last upper bound large enough to
+cover all expected values in your data.
+
+## CSV format
+
+Your subjects CSV must contain at minimum the following columns:
+
+| Column | Description |
+|---|---|
+| `ptid` | Unique subject identifier — must match the `.npy` filename |
+| `selected_cohort` | Class label for the linear probe (e.g. diagnosis group) |
+| *(your FEATURE1 column)* | First demographic variable |
+| *(your FEATURE2 column)* | Second demographic variable |
+
+For embedding extraction with `embed_all.py`, the CSV must also include:
+
+| Column | Description |
+|---|---|
+| `nifti_path` | Absolute path to the subject's NIfTI scan |
+
 ## Usage
 
 Extract embeddings, then train the linear probe and write the fairness report. Please use the following commands:
 
 ```bash
+# 0. Configure your fairness variables in pipeline/config.py (see above)
+
 # 1. (Optional) Generate dummy embeddings to test the pipeline without a model
 #    (one <ptid>.npy per subject, with a learnable class signal)
 python pipeline/make_dummy_embeddings.py \
@@ -128,7 +171,8 @@ pipeline/
     make_dummy_embeddings.py        generate dummy embeddings for testing
     embedding_dataset.py            loads <ptid>.npy embeddings from a directory
     lp_fomo.py                      LP + fairness evaluation
+    fairness_report.py              fairness helpers (binning, normalisation, report)
     identity_model.py               passthrough encoder used by the LP module
-    config.py                       fairness-variable configuration
+    config.py                       fairness-variable configuration  ← edit this
 requirements.txt
 ```
