@@ -10,7 +10,7 @@ Usage:
 1. First specify FEATURE1_CSV_COL, FEATURE2_CSV_COL, and FEATURE1_BINS in config.py.
 
 2. Then run:
-    python pipeline/lp_fomo.py \\
+    python -m pipeline/lp_fomo.py \\
         --embeddings-dir /path/to/embeddings \\
         --csv            /path/to/subjects.csv \\
         --output-dir     results/my_model

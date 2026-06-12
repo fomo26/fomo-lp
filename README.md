@@ -80,7 +80,7 @@ python pipeline/embed_all.py \
     --out-dir /path/to/embeddings
 
 # 3. Train LP + write fairness report
-python pipeline/lp_fomo.py \
+python -m pipeline/lp_fomo.py \
     --embeddings-dir /path/to/embeddings \
     --csv            /path/to/subjects.csv \
     --output-dir     results/my_model
